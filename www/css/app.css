@@ -166,7 +166,7 @@ text-align:left;
 }
 
 .page--login-page .page__background{
-background:#09293A;
+background:#B1347C;
 }
 
 .page--login-page p,
@@ -216,7 +216,7 @@ color:#505050;
 }
 
 .text-input--blue-field{
-background:#294553;
+background:#B1347C;
 color:#fff;
 padding:3px 8px;
 }
@@ -236,7 +236,7 @@ color:#fff;
 }
 
 .page--login-page ons-input .text-input__label {
-color:#009688;
+color:#80CC1D;
 }
  
 .inner .button--material--flat,
@@ -250,12 +250,12 @@ text-transform:none;
 -webkit-box-shadow: none;
 -moz-box-shadow: none;
 box-shadow: none;
-background:#009688;
+background:#80CC1D;
 color:#fff;
 }
 
 .orange-bar{
-background:#f75d34 ;
+background:#B1347C ;
 color:#fff;
 padding:10px;
 font-size:13px;
@@ -402,7 +402,7 @@ color:#fff;
 }
 
 .tag-status{
-background:#fc8344;
+background:#B1347C;
 color:#fff;
 display:table;
 padding:5px 10px;
@@ -411,7 +411,7 @@ text-transform:capitalize;
 }
 
 .tag-status.assigned {
-background:#4c9ec0;
+background:#80CC1D;
 }
 .tag-status.acknowledged  {
 background:#33a17e;
@@ -430,7 +430,7 @@ background:#2c9f2c ;
 .tag-status.canceled,
 .tag-status.cancelled
 {
-background:#e53935 ;
+background:#B1347C ;
 }
 
 .list-wrapper .tag{
@@ -603,7 +603,7 @@ color:#fff;
 .navigation-bar--ktransparent-toolbar,
 .button--green-button
 {
-background:#009688;
+background:#80CC1D;
 color:#fff;
 }
 
@@ -656,7 +656,7 @@ margin-top:30px;
 }
 
 .list--list-blue-bg .list__item{
-background:#009688;
+background:#80CC1D;
 color:#fff;
 }
 .top40{
@@ -712,7 +712,7 @@ display:block;
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background-color: #009688;
+  background-color: #80CC1D;
   opacity: 0.6;
   position: absolute;
   top: 0;
