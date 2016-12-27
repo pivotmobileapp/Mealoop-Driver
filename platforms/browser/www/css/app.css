@@ -250,12 +250,12 @@ text-transform:none;
 -webkit-box-shadow: none;
 -moz-box-shadow: none;
 box-shadow: none;
-background:#80CC1D;
+background:#B1347C;
 color:#fff;
 }
 
 .orange-bar{
-background:#B1347C ;
+background:#80CC1D ;
 color:#fff;
 padding:10px;
 font-size:13px;
@@ -393,7 +393,7 @@ border:1px solid #505050;
 padding:4px 10px;
 }
 .tag.delivery{
-background:#33a17e;
+background:#80CC1D;
 color:#fff;
 }
 .tag.pickup{
@@ -603,7 +603,7 @@ color:#fff;
 .navigation-bar--ktransparent-toolbar,
 .button--green-button
 {
-background:#80CC1D;
+background:#B1347C;
 color:#fff;
 }
 
