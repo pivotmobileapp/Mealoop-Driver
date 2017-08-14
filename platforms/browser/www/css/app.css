@@ -166,7 +166,7 @@ text-align:left;
 }
 
 .page--login-page .page__background{
-background:#B1347C;
+background:#CD0000;
 }
 
 .page--login-page p,
@@ -250,7 +250,7 @@ text-transform:none;
 -webkit-box-shadow: none;
 -moz-box-shadow: none;
 box-shadow: none;
-background:#B1347C;
+background:#CD0000;
 color:#fff;
 }
 
@@ -402,7 +402,7 @@ color:#fff;
 }
 
 .tag-status{
-background:#B1347C;
+background:#CD0000;
 color:#fff;
 display:table;
 padding:5px 10px;
@@ -414,7 +414,7 @@ text-transform:capitalize;
 background:#80CC1D;
 }
 .tag-status.acknowledged  {
-background:#33a17e;
+background:#00EFA2;
 }
 .tag-status.started {
 background:#ba68c8;
@@ -430,7 +430,7 @@ background:#2c9f2c ;
 .tag-status.canceled,
 .tag-status.cancelled
 {
-background:#B1347C ;
+background:#CD0000 ;
 }
 
 .list-wrapper .tag{
@@ -603,7 +603,7 @@ color:#fff;
 .navigation-bar--ktransparent-toolbar,
 .button--green-button
 {
-background:#B1347C;
+background:#CD0000;
 color:#fff;
 }
 
