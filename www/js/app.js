@@ -1,4 +1,7 @@
-
+/**
+DRIVER APP
+Version 1.6.0
+*/
 
 var ajax_url= krms_driver_config.ApiUrl ;
 var dialog_title_default= krms_driver_config.DialogDefaultTitle;
@@ -12,6 +15,8 @@ var ajax_request2;
 var ajax_request3;
 var map;
 var watchID;
+var app_running_status;
+var push;
 
 jQuery.fn.exists = function(){return this.length>0;}
 
@@ -83,13 +88,24 @@ document.addEventListener("deviceready", function() {
 	
 	navigator.splashscreen.hide();
 	
+	app_running_status="active";
+	
+	/*check if background tracking is already on if yes then turn off*/
+	var bg_tracking = getStorage("bg_tracking");	
+	if (!empty(bg_tracking)){
+		if ( bg_tracking==1 || bg_tracking=="1"){
+			backgroundGeolocation.stop();
+		}
+	}
+	
 	window.plugins.insomnia.keepAwake();
 		        
 	if ( !empty(krms_driver_config.PushProjectID)) {
 		
-		var push = PushNotification.init({
+		push = PushNotification.init({
 	        "android": {
-	            "senderID": krms_driver_config.PushProjectID
+	            "senderID": krms_driver_config.PushProjectID,
+	            "clearBadge":true
 	        },	        
 	        "ios": {"alert": "true", "badge": "true", "sound": "true", "clearBadge": "true" }, 
 	        "windows": {} 
@@ -113,10 +129,14 @@ document.addEventListener("deviceready", function() {
 	     	 navigator.vibrate(vibrate_interval);	     	 
 	     	 	     	 
 	     	 if ( data.additionalData.foreground ){
-	     	  	 //when the app is active
+	     	  	 //when the app is active	     	  	 
+	     	  	 
 	     	  	 setBaloon();
-	     	  	 playNotification();	     	  	 
-	     	  	 switch ( data.additionalData.data.actions )
+	     	  	 playNotification();	     	
+	     	  	 	     	  	 	     	  	 
+	     	  	 //alert(data.additionalData.additionalData.actions);
+	     	  	   	 
+	     	  	 switch ( data.additionalData.additionalData.actions )
 	     	  	 {
 	     	  	 	case "ASSIGN_TASK":
 	     	  	 	case "CANCEL_TASK":
@@ -140,7 +160,7 @@ document.addEventListener("deviceready", function() {
 	     	 } else {	     	 	 
 	     	 	 //when the app is not active
 	     	 	 setBaloon();	     	 	 
-	     	  	 switch ( data.additionalData.data.actions )
+	     	  	 switch ( data.additionalData.additionalData.actions )
 	     	  	 {
 	     	  	 	case "ASSIGN_TASK":
 	     	  	 	case "CANCEL_TASK":
@@ -316,11 +336,15 @@ document.addEventListener("show", function(event) {
 		  	reloadHome();  	  					  	  					  	 
 		    checkGPS();	
 		break;
-
 		
 		case "photoPage":			
 		  callAjax('getTaskPhoto', 'task_id='+$(".task_id_details").val() );
 		break;
+		
+		case "Signature":
+		    callAjax('loadSignature', 'task_id='+$(".task_id_global").val() );
+		break;
+		
 	}	
 }, false);
 
@@ -331,14 +355,16 @@ document.addEventListener("init", function(event) {
 			/* document.getElementById("onduty").addEventListener('change', function(e) {
 	               console.log('click', e.target.isInteractive );
 	         });*/
-			
-
+						
 			case "signup":
 		     initIntelInputs();
+		     TransLatePage();
+		     translateForms();		     		    
 		    break;			
 			
 			case "Map":			  
-			  dump('init map');			  
+			case "Notes":			  
+			  TransLatePage();
 			break;
 					    			
 			case "Notification":
@@ -518,6 +544,12 @@ document.addEventListener("init", function(event) {
 						
 			
 			case "home":
+			
+			 var app_name=getStorage("app_name");
+			 if(!empty(app_name)){
+			    $(".app-title").html(app_name);
+			 }
+			
 			 var pullHook = document.getElementById('pull-hook');
 			 pullHook.onAction = function(done) {		
 			 	  params="date="+ getStorage("kr_todays_date_raw");
@@ -619,7 +651,9 @@ function callAjax(action,params)
 		return;
 	}
 	
-	params+="&lang_id="+getStorage("kr_lang_id");
+	//params+="&lang_id="+getStorage("kr_lang_id");
+	params+="&lang="+getStorage("kr_lang_id");
+	
 	if(!empty(krms_driver_config.APIHasKey)){
 		params+="&api_key="+krms_driver_config.APIHasKey;
 	}		
@@ -719,7 +753,8 @@ function callAjax(action,params)
 		   			   TaskAddSignature( data.details ) +	  // task signature
 		   			   DriverNotes( data.history_notes , data.details ) +	// driver notes	   			   
 		   			   addPhotoChevron(data.details) +  // take picture
-		   			   TaskDetailsChevron_3(data.details.history)  // task history		   			   
+		   			   TaskDetailsChevron_3(data.details.history)  +  // task history		   			   
+		   			   '<div style="height:100px;"></div>'
 		   			);
 		   			
 		   			//show signature
@@ -727,6 +762,12 @@ function callAjax(action,params)
 		   			$("#task-action-wrap").html( 
 		   			  swicthButtonAction( data.details.task_id, data.details.status_raw )
 		   			);
+		   			
+		   			$(".task_id_global").val( data.details.task_id );
+		   			
+		   			setStorage("enabled_resize_photo",data.details.enabled_resize_photo);
+		   			setStorage("photo_resize_width",data.details.photo_resize_width);
+		   			setStorage("photo_resize_height",data.details.photo_resize_height);
 		   					   					   			
 		   			break;
 		   			
@@ -828,7 +869,8 @@ function callAjax(action,params)
 		   			 var html='';
 		   			  x=1;	   			 
 		   			  $.each( data.details, function( key, val ) { 		   			  	  
-		   			  	  html+=OptionListLanguage('lang_id', val.lang_id, val.language_code , x);
+		   			  	  //html+=OptionListLanguage('lang_id', val.lang_id, val.language_code , x);
+		   			  	  html+=OptionListLanguage('lang_id', val, val , x);
 		   			  	  x++;
 		   			  });
 		   			  $("#language-list").html(  html );
@@ -846,17 +888,26 @@ function callAjax(action,params)
 		   			   setStorage("kr_translation",JSON.stringify(data.details.translation));
 		   			   
 		   			   //set sounds url
-		   			   setStorage("notification_sound_url",data.details.notification_sound_url);
-		   			   
-		   			   setStorage("enabled_signup",data.details.enabled_signup);
-		   			   
+		   			   setStorage("notification_sound_url",data.details.notification_sound_url);		   			   
+		   			   setStorage("enabled_signup",data.details.enabled_signup);		   			   
 		   			   setStorage("vibrate_interval",data.details.vibrate_interval);
 		   			   
-		   			   // set the language id
-		   			   if ( empty( getStorage("kr_lang_id") )){
-		   			   	  setStorage("kr_lang_id","en");  
-		   			   } 
+		   			   /*tracking*/		   			   
+		   			   setStorage("record_track_Location",data.details.record_track_Location);
+		   			   setStorage("disabled_tracking_bg",data.details.disabled_tracking_bg);
+		   			   setStorage("track_interval",data.details.track_interval);
 		   			   
+		   			   setStorage("app_name",data.details.app_name);
+		   			   
+		   			   // set the language id
+		   			   if ( !empty(data.details.app_language)){
+		   			   	      setStorage("kr_lang_id",data.details.app_language);  
+		   			   } else {
+			   			   if ( empty( getStorage("kr_lang_id") )){
+			   			   	  setStorage("kr_lang_id","");  
+			   			   } 
+		   			   }
+		   			   		   			   
 		   			   var auto_login = isAutoLogin();
 	                   
 	                   if ( auto_login == 1) {	       
@@ -951,6 +1002,37 @@ function callAjax(action,params)
 		   			case "deletePhoto":
 		   			   callAjax('getTaskPhoto', 'task_id='+$(".task_id_details").val() );
 		   			break;
+		   			
+		   			case "loadSignature":
+		   			  if (data.details.status=="successful"){
+		   			  	 $(".toolbar-title-signature").html( getTrans("View Signature",'view_signature') );
+	  	 	             $(".signature-action").hide();
+	  	 	             if (!empty(data.details.data)){
+	  	 	             	
+	  	 	             	 signature_html='<div class="img_loaded" >';
+				  	 	     signature_html += '<img src="'+data.details.data.customer_signature_url+'" />';
+				  	 	     signature_html+='</div>';
+				  	 	   
+				  	 	     $("#signature-pan").html ( signature_html )  ;
+				  	 	   
+				  	 	     imageLoaded('.img_loaded');
+				  	 	     
+				  	 	     $(".recipient_name").hide();
+	  	 	             }
+		   			  } else {
+		   			  	 $(".toolbar-title-signature").html( getTrans("Add Signature",'add_signature') );
+	  	 	             $(".signature-action").show();	
+	  	 	             $(".recipient_name").show();  	 	               
+	  	 	             $sigdiv = $("#signature-pan") ;
+	  	 	             //$sigdiv.jSignature();
+		   			     $(".recipient_name").val( data.details.data.receive_by );
+		   			     if (!empty(data.details.data)){
+		   			     	 $(".signature_id").val( data.details.data.id );
+		   			     	 dump(data.details.data.signature_base30);		   			     	 
+	  	 	                 $sigdiv.jSignature("setData", "data:"+data.details.data.signature_base30 ) ;	  	 	                 
+		   			     }
+		   			  }
+		   			break;
 		   					   					   			
 		   			default:
 		   			  onsenAlert( data.msg );
@@ -997,7 +1079,17 @@ function callAjax(action,params)
 		   			case "getTaskPhoto":
 		   			  $("#list-photos").html('');
 		   			break;
+		   			
+		   			case "trackDistance":
+		   			toastMsg( data.msg );
+		   			break;
 		   				
+		   			case "loadSignature":
+		   			 $(".toolbar-title-signature").html( getTrans("Add Signature",'add_signature') );
+	  	 	         $(".signature-action").show();
+	  	 	         $("#signature-pan").jSignature();	
+		   			break;
+		   			
 		   			default:		   			
 		   			onsenAlert( data.msg );
 		   			break;
@@ -1030,7 +1122,8 @@ function AjaxTask(action, params , done)
 		return;
 	}
 
-	params+="&lang_id="+getStorage("kr_lang_id");
+	//params+="&lang_id="+getStorage("kr_lang_id");
+	params+="&lang="+getStorage("kr_lang_id");
 	if(!empty(krms_driver_config.APIHasKey)){
 		params+="&api_key="+krms_driver_config.APIHasKey;
 	}		
@@ -1144,7 +1237,8 @@ function forgotPass()
 
 var xx=0;
 var lastUpdateTime,
-minFrequency = 10*2000;
+/*minFrequency = 10*2000;*/
+minFrequency = 8000;
 
 function getCurrentPosition()
 {	 
@@ -1158,6 +1252,17 @@ function getCurrentPosition()
 	     
 	     var now = new Date();
 	     
+	    if(!empty(app_running_status)){
+		     if (app_running_status=="background"){
+		     	 return;
+		     }
+	     }
+	     	     	    
+	     app_track_interval = getStorage("track_interval");
+	     if (!empty(app_track_interval)){
+	     	 minFrequency=app_track_interval;
+	     }	     	  
+	     
 	     if(!empty(lastUpdateTime)){	     	 
 	     	 var freq_time = now.getTime() - lastUpdateTime.getTime();	 
 	     	 if ( freq_time <  minFrequency ) {
@@ -1168,7 +1273,17 @@ function getCurrentPosition()
 	     lastUpdateTime = now;	 	     	     
 	     //$(".watch-id").html( xx++ );	     
 	     
+	     //params = 'lat='+ position.coords.latitude + "&lng=" + position.coords.longitude;
 	     params = 'lat='+ position.coords.latitude + "&lng=" + position.coords.longitude;
+	     params+="&app_version="+ BuildInfo.version;
+	     
+	     params+="&altitude="+ position.coords.altitude;
+	     params+="&accuracy="+ position.coords.accuracy;
+	     params+="&altitudeAccuracy="+ position.coords.altitudeAccuracy;
+	     params+="&heading="+ position.coords.heading;
+	     params+="&speed="+ position.coords.speed;
+	     params+="&track_type=active";
+	     	     
 	     callAjax2('updateDriverLocation', params);
 	     
 	 },function(error) {
@@ -1438,7 +1553,7 @@ function AddSignatureToTask()
 {
 	//var datapair = $("#signature-pan").jSignature("getData", "svgbase64");
 	var datapair = $("#signature-pan").jSignature("getData","base30");	
-	callAjax("AddSignatureToTask","image="+datapair +"&task_id=" + $(".task_id_signature").val() + "&recipient_name="+ $(".recipient_name").val()  );
+	callAjax("AddSignatureToTask","image="+datapair +"&task_id=" + $(".task_id_signature").val() + "&recipient_name="+ $(".recipient_name").val()  + "&signature_id="+ $(".signature_id").val()  );
 }
 
 function imageLoaded(div_id)
@@ -1543,7 +1658,7 @@ function SetLanguage(lang_id , language)
 	dump(lang_id);
 	dump(language);
 	$(".language_selected").html( language );
-	setStorage("kr_lang_id",lang_id);
+	setStorage("kr_lang_id",language);
 	LanguageList.hide();
 	TransLatePage();
 	reload_home=1;
@@ -1592,6 +1707,7 @@ function translateForms()
 	var t='';
 	$.each( $(".field-wrap") , function() { 				
 		var temp_value=$(this).find("input.text-input").attr("placeholder");		
+		//dump("->"+temp_value);
 		if(!empty(temp_value)){
 			key = $(this).find("ons-input").data("trn-key");			
 		    t = getTrans(temp_value, key );		    
@@ -1695,15 +1811,88 @@ function checkGPS()
 {				
 	 if (isDebug()){
 		return ;
-	 }
-	 
-	 if ( device.platform =="iOS"){	 	 	 	 
+	 }	 
+	 /*if ( device.platform =="iOS"){	 	 	 	 
 	 	 getCurrentPosition();
 	 	 return;
-	 }
-	 
+	 }	 
      cordova.plugins.locationAccuracy.request( onRequestSuccess, 
 	 onRequestFailure, cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+	 */
+	 
+	 if ( device.platform =="iOS"){
+	 	
+	 	cordova.plugins.diagnostic.isLocationAuthorized(function(authorized){
+	 		
+	 		if(authorized){
+	 		   cordova.plugins.locationAccuracy.request( onRequestSuccess, 
+	           onRequestFailure, cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+	 		} else {
+	 			
+	 			 cordova.plugins.diagnostic.requestLocationAuthorization(function(status){
+				    switch(status){
+				        case cordova.plugins.diagnostic.permissionStatus.NOT_REQUESTED:
+				            toastMsg( getTrans("Permission not requested",'permission_not_requested') );
+				            return;
+				            break;
+				        case cordova.plugins.diagnostic.permissionStatus.DENIED:
+				            toastMsg( getTrans("Permission denied",'permission_denied') );
+				            return;
+				            break;
+				        case cordova.plugins.diagnostic.permissionStatus.GRANTED:
+				            //toastMsg("Permission granted always");		 
+				            
+				            cordova.plugins.locationAccuracy.request( onRequestSuccess, 
+	                        onRequestFailure, cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+				                       
+				            break;
+				        case cordova.plugins.diagnostic.permissionStatus.GRANTED_WHEN_IN_USE:
+				            //toastMsg("Permission granted only when in use");		            		            
+				            
+				            cordova.plugins.locationAccuracy.request( onRequestSuccess, 
+	                        onRequestFailure, cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+			                
+				            break;
+				    }
+				}, function(error){
+				    toastMsg(error);
+				    return;
+				}, cordova.plugins.diagnostic.locationAuthorizationMode.ALWAYS);				
+	 				
+	 		}	 		
+	 	}, function(error){
+		   toastMsg("The following error occurred: "+error);
+		});
+	 	
+	 } else {
+	 	
+	 	cordova.plugins.diagnostic.requestLocationAuthorization(function(status){
+		    switch(status){
+		        case cordova.plugins.diagnostic.permissionStatus.NOT_REQUESTED:
+		            toastMsg( getTrans("Permission not requested",'permission_not_requested') );
+		            return;
+		            break;
+		        case cordova.plugins.diagnostic.permissionStatus.GRANTED:
+		            //toastMsg("Permission granted");
+		            
+		            cordova.plugins.locationAccuracy.request( onRequestSuccess, 
+	                onRequestFailure, cordova.plugins.locationAccuracy.REQUEST_PRIORITY_HIGH_ACCURACY);
+		            
+		            break;
+		        case cordova.plugins.diagnostic.permissionStatus.DENIED:
+		            toastMsg( getTrans("Permission denied",'permission_denied') );
+		            return;
+		            break;
+		        case cordova.plugins.diagnostic.permissionStatus.DENIED_ALWAYS:
+		            toastMsg( getTrans("Permission permanently denied",'permission_permanently_denied') );
+		            return;
+		            break;
+		    }
+		}, function(error){
+		    toastMsg(error);
+		    return;
+		});	
+	 }
 }
 
 function onRequestSuccess(success){
@@ -1831,17 +2020,8 @@ function onMapInit()
 	    	 
 	    	 var destination = new plugin.google.maps.LatLng( task_lat , task_lng );
 	    	 
-	    	  map.addPolyline({
-			    points: [
-			      destination,
-			      driver_location
-			    ],
-			    'color' : '#AA00FF',
-			    'width': 10,
-			    'geodesic': true
-			   }, function(polyline) {
-			   	
-			   	  map.animateCamera({
+	    	  if ( iOSeleven() ){	    	  	
+	    	  	   map.animateCamera({
 					  'target': driver_location,
 					  'zoom': 17,
 					  'tilt': 30
@@ -1855,10 +2035,37 @@ function onMapInit()
 					    markers[markers.length - 1].showInfoWindow();
 					   });
 						
-				   });  
-				   
-			   });   
-	    	 // end position success
+				   });  	    	  
+	    	  } else {	    	
+		    	  map.addPolyline({
+				    points: [
+				      destination,
+				      driver_location
+				    ],
+				    'color' : '#AA00FF',
+				    'width': 10,
+				    'geodesic': true
+				   }, function(polyline) {
+				   	
+				   	  map.animateCamera({
+						  'target': driver_location,
+						  'zoom': 17,
+						  'tilt': 30
+						}, function() {
+							
+						   var data = [      
+					          {'title': getTrans('You are here','you_are_here'), 'position': driver_location }  
+					       ];
+					   
+						   addMarkers(data, function(markers) {
+						    markers[markers.length - 1].showInfoWindow();
+						   });
+							
+					   });  
+					   
+				   });   
+		    	 // end position success	    	 
+	    	  }
 	    	 
 	      }, function(error){
 	    	 toastMsg( error.message );
@@ -1896,6 +2103,13 @@ function viewTaskDirection()
    var task_lng=getStorage('task_lng');
    
    dump(task_lat); dump(task_lng);
+   
+   var map_action = getStorage("map_action");
+   dump(map_action);
+   if ( map_action=="map2"){   	   
+   	   task_lat=getStorage('dropoff_lat');
+       task_lng=getStorage('dropoff_lng');
+   }   
 	
    navigator.geolocation.getCurrentPosition( function(position) {	    
    	         
@@ -1929,7 +2143,7 @@ function clearPushCount()
 function playNotification()
 {
 	 //var sound_url= getStorage("notification_sound_url");
-	 var sound_url= "file:///android_asset/www/audio/fb-alert.mp3";
+	 var sound_url= "file:///android_asset/www/beep.wav";
 	 dump(sound_url);
 	 if(!empty(sound_url)){
         playAudio(sound_url);
@@ -2089,11 +2303,13 @@ function editNotes()
    if (dialog) {   	  
       dialog.show();
       $(".edit_notes_fields").val( $(".notes_value").val() );
+      TransLatePage();
    } else {
       ons.createDialog('editNotes.html')
       .then(function(dialog) {      	
       	$(".edit_notes_fields").val( $(".notes_value").val() );
         dialog.show();
+        TransLatePage();
       });
    }   
 }
@@ -2155,6 +2371,8 @@ function view3DirectionMap(data)
 		  	  /*alert("dropoff "+data.dropoff_lat + " => "+ data.dropoff_lng );
 		  	  alert("task location "+data.task_lat + " => "+ data.task_lng );*/
 		  	  
+		  	  setStorage("dropoff_lat", data.dropoff_lat );
+		  	  setStorage("dropoff_lng", data.dropoff_lng );		  	  
 		  	  
 		  	  setTimeout(function(){ 	    
 		        var div = document.getElementById("map_canvas");
@@ -2220,47 +2438,63 @@ function view3DirectionMap(data)
 		        	    				        					    
 					   addMarkers(data_marker, function(markers) {
 					    
-					   	  	map.addPolyline({
-							points: [
-							  driver_location,
-							  dropoff_location
-							],
-							'color' : '#AA00FF',
-							'width': 10,
-							'geodesic': true
-							}, function(polyline) {
-							   
-							   map.animateCamera({
-								  'target': dropoff_location,
-								  'zoom': 17,
-								  'tilt': 30
-								}, function() {
-																	
-									map.addPolyline({
-									points: [
-									  dropoff_location,
-									  task_location
-									],
-									'color' : '#AA00FF',
-									'width': 10,
-									'geodesic': true
-									}, function(polyline) {
-									   
-										map.animateCamera({
-										  'target': task_location,
-										  'zoom': 17,
-										  'tilt': 30
-										}, function() {
-											
-										}); /*end camera*/
-										 
-									}); /*end line*/  	
-											
-															   
-							   });  /*end camera*/
-								
-							}); /*end line*/  
-					   	
+					   	    if ( iOSeleven() ){					   	    	
+					   	    	 map.animateCamera({
+									  'target': dropoff_location,
+									  'zoom': 17,
+									  'tilt': 30
+								}, function() {									
+									map.animateCamera({
+									  'target': task_location,
+									  'zoom': 17,
+									  'tilt': 30
+									}, function() {
+										
+									}); /*end camera*/
+									
+					   	    	});  /*end camera*/
+					   	    } else {
+						   	  	map.addPolyline({
+								points: [
+								  driver_location,
+								  dropoff_location
+								],
+								'color' : '#AA00FF',
+								'width': 10,
+								'geodesic': true
+								}, function(polyline) {
+								   
+								   map.animateCamera({
+									  'target': dropoff_location,
+									  'zoom': 17,
+									  'tilt': 30
+									}, function() {
+																		
+										map.addPolyline({
+										points: [
+										  dropoff_location,
+										  task_location
+										],
+										'color' : '#AA00FF',
+										'width': 10,
+										'geodesic': true
+										}, function(polyline) {
+										   
+											map.animateCamera({
+											  'target': task_location,
+											  'zoom': 17,
+											  'tilt': 30
+											}, function() {
+												
+											}); /*end camera*/
+											 
+										}); /*end line*/  	
+												
+																   
+								   });  /*end camera*/
+									
+								}); /*end line*/  					   	
+					   	    }
 					   }); /*end markers*/
 					    				    
 		        	 	 	
@@ -2382,7 +2616,7 @@ function initIntelInputs()
 	 	 $(".mobile_inputs").intlTelInput({      
 		    autoPlaceholder: false,		      
 		    defaultCountry: mobile_country_code,  
-		    autoHideDialCode:true,    
+		    autoHideDialCode:false,    
 		    nationalMode:false,
 		    autoFormat:false,
 		    utilsScript: "lib/intel/lib/libphonenumber/build/utils.js"
@@ -2390,7 +2624,7 @@ function initIntelInputs()
 	 } else {
 		 $(".mobile_inputs").intlTelInput({      
 		    autoPlaceholder: false,		        
-		    autoHideDialCode:true,    
+		    autoHideDialCode:false,    
 		    nationalMode:false,
 		    autoFormat:false,
 		    utilsScript: "lib/intel/lib/libphonenumber/build/utils.js"
@@ -2562,7 +2796,7 @@ function addPhotoSelection()
 
 function showCemara()
 {
-	
+		
 	if (isDebug()){
 		toastMsg("show camera");
 		var dialog = document.getElementById('addphotoSelection');
@@ -2570,13 +2804,35 @@ function showCemara()
 		return;
 	}
 	
-	navigator.camera.getPicture(uploadTaskPhoto, function(){
+	/*navigator.camera.getPicture(uploadTaskPhoto, function(){
 		toastMsg( getTrans("Get photo failed","get_photo_failed") );
 	},{
 	    destinationType: Camera.DestinationType.FILE_URI,
 	    sourceType: Camera.PictureSourceType.CAMERA,
 	    popoverOptions: new CameraPopoverOptions(300, 300, 100, 100, Camera.PopoverArrowDirection.ARROW_ANY)
-    });
+    });*/
+	
+	var cam_options = {
+		destinationType: Camera.DestinationType.FILE_URI,
+	    sourceType: Camera.PictureSourceType.CAMERA,
+	    popoverOptions: new CameraPopoverOptions(300, 300, 100, 100, Camera.PopoverArrowDirection.ARROW_ANY)
+	};
+	
+	var app_resize_picture = getStorage("enabled_resize_photo");
+	
+	if ( app_resize_picture==1){
+		cam_options={
+			destinationType: Camera.DestinationType.FILE_URI,
+		    sourceType: Camera.PictureSourceType.CAMERA,
+		    popoverOptions: new CameraPopoverOptions(300, 300, 100, 100, Camera.PopoverArrowDirection.ARROW_ANY),
+		    targetHeight: getStorage("photo_resize_width") ,
+			targetWidth:  getStorage("photo_resize_height")
+		};
+	}
+	
+	navigator.camera.getPicture(uploadTaskPhoto, function(){
+		toastMsg( getTrans("Get photo failed","get_photo_failed") );
+	}, cam_options );
 }
 
 function uploadTaskPhoto(imageURI)
@@ -2677,4 +2933,118 @@ function deletePhoto(id)
         }
       }
     });
+}
+
+/*Location tracking in background*/
+document.addEventListener("pause", onBackgroundMode, false);
+
+function onBackgroundMode() {    
+    	
+	app_running_status="background";
+	
+	if ( !hasConnection() ){	
+		backgroundGeolocation.stop();
+		return;
+	}
+	
+	var kr_token=getStorage("kr_token");
+	//toastMsg(kr_token);
+	if(empty(kr_token)){
+		backgroundGeolocation.stop();
+		return;
+	}
+	
+	var app_disabled_bg_tracking=getStorage("disabled_tracking_bg");
+	if (app_disabled_bg_tracking==1 || app_disabled_bg_tracking=="1"){
+		backgroundGeolocation.stop();
+		return;
+	}
+	
+	var min_frequency = getStorage("track_interval");
+	
+	if (min_frequency<=0){
+		min_frequency=8000;
+	}
+	if (empty(min_frequency)){
+		min_frequency=8000;
+	}
+	
+	//toastMsg(min_frequency);
+		
+	backgroundGeolocation.configure(function(location){
+		
+		//toastMsg('[js] BackgroundGeolocation callback:  ' + location.latitude + ',' + location.longitude);
+		
+		//callAjax2("UpdateActivity","lat="+location.latitude + "&lng="+ location.longitude );
+		params = 'lat='+ location.latitude + "&lng=" + location.longitude + "&app_version=" + BuildInfo.version;
+		
+		params+="&altitude="+ location.altitude;
+	    params+="&accuracy="+ location.accuracy;
+	    params+="&altitudeAccuracy=";
+	    params+="&heading="+ location.bearing;
+	    params+="&speed="+ location.speed;
+	    params+="&track_type=background";
+		
+        callAjax2('updateDriverLocation', params);
+		
+		/*stop watch position*/
+        navigator.geolocation.clearWatch(watchID);
+		
+		backgroundGeolocation.finish();
+		//20000
+		
+	}, function(error){
+		
+		 toastMsg('BackgroundGeolocation error');
+		
+	}, {
+        desiredAccuracy: 10,
+        stationaryRadius: 20,
+        distanceFilter: 1,
+	        interval: min_frequency,
+        activitiesInterval: min_frequency,
+        locationProvider: backgroundGeolocation.provider.ANDROID_ACTIVITY_PROVIDER,
+        stopOnStillActivity:false,
+        notificationTitle: BuildInfo.name ,
+        notificationText: getTrans("Tracking","tracking") +  "...",
+        pauseLocationUpdates:false,
+        fastestInterval: min_frequency,
+        stopOnTerminate: true,
+        stopOnStillActivity: false
+    });
+	
+    setStorage("bg_tracking",1);
+    /*stop watch position*/
+    navigator.geolocation.clearWatch(watchID);
+    
+    backgroundGeolocation.start();   
+}
+
+document.addEventListener("resume", onForegroundMode, false);
+
+function onForegroundMode()
+{	
+	app_running_status="active";
+	
+	setStorage("bg_tracking",2);
+	checkGPS();
+	backgroundGeolocation.stop();
+		
+	/*clear badge*/
+	push.setApplicationIconBadgeNumber(function() {
+	    //console.log('success');
+	}, function() {
+	    //console.log('error');
+	}, 0);
+}
+
+
+function iOSeleven()
+{	
+	if ( device.platform =="iOS"){	
+		version = parseFloat(device.version);		
+		if ( version>=11 ){
+			return true;
+		}
+	}	
 }
